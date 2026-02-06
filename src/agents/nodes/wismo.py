@@ -65,15 +65,25 @@ async def handle_wismo(state: ConversationState) -> dict[str, Any]:
     # Get estimated delivery (mock for now - would come from tracking API)
     estimated_delivery = _estimate_delivery(order_data)
     shipped_date = _get_shipped_date(order_data)
-    
+
+    # Build conversation history
+    conversation_history = ""
+    if state.get("messages"):
+        history_messages = state["messages"][-6:]  # Last 3 exchanges
+        conversation_history = "\n".join([
+            f"{m['role'].upper()}: {m['content']}"
+            for m in history_messages
+        ])
+
     # Use LLM to generate natural response
     llm = ChatOpenAI(
         model=settings.default_model,
         temperature=0.7,  # Slightly creative for natural responses
         api_key=settings.openai_api_key,
     )
-    
+
     prompt = WISMO_RESPONSE_PROMPT.format(
+        conversation_history=conversation_history or "No previous messages in this conversation",
         order_number=order_data.get("order_number", "N/A"),
         status=_status_to_friendly(status),
         fulfillment_status=order_data.get("fulfillment_status", "processing"),

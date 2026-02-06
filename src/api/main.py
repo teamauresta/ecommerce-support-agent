@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
-from src.api.routes import conversations, health, webhooks, analytics
+from src.api.routes import conversations, health, webhooks, analytics, knowledge_base
 import structlog
 
 logger = structlog.get_logger()
@@ -53,6 +53,11 @@ app.include_router(
     analytics.router,
     prefix="/api/v1",
     tags=["Analytics"],
+)
+app.include_router(
+    knowledge_base.router,
+    prefix="/api/v1",
+    tags=["Knowledge Base"],
 )
 
 

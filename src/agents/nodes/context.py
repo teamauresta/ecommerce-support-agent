@@ -3,7 +3,10 @@
 from typing import Any
 
 from src.agents.state import ConversationState, OrderData
+from src.config import settings
+from src.database import get_session_context
 from src.integrations.shopify import ShopifyClient, get_shopify_client
+from src.integrations.knowledge_base import get_kb_client
 import structlog
 
 logger = structlog.get_logger()
@@ -104,7 +107,31 @@ async def fetch_context(state: ConversationState) -> dict[str, Any]:
                 }
         except Exception as e:
             logger.warning("customer_fetch_error", email=email, error=str(e))
-    
+
+    # Search knowledge base for relevant content
+    try:
+        kb_client = get_kb_client()
+        async with get_session_context() as session:
+            kb_results = await kb_client.search(
+                session=session,
+                store_id=store_id,
+                query=state["current_message"],
+                top_k=settings.kb_retrieval_top_k,
+                threshold=settings.kb_similarity_threshold,
+            )
+            if kb_results:
+                updates["policy_context"] = [
+                    f"[{r['page_title']}]({r['source_url']})\n{r['content']}"
+                    for r in kb_results
+                ]
+                logger.info(
+                    "kb_search_complete",
+                    store_id=store_id,
+                    results=len(kb_results),
+                )
+    except Exception as e:
+        logger.warning("kb_search_error", store_id=store_id, error=str(e))
+
     return updates
 
 

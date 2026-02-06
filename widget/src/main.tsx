@@ -6,7 +6,7 @@ import './styles.css';
 // Get configuration from script tag
 const scriptTag = document.currentScript as HTMLScriptElement | null;
 const storeId = scriptTag?.dataset.storeId || 'default';
-const apiUrl = scriptTag?.dataset.apiUrl || 'http://localhost:8000';
+const apiUrl = scriptTag?.dataset.apiUrl || 'http://localhost:8001';
 const position = (scriptTag?.dataset.position || 'bottom-right') as 'bottom-right' | 'bottom-left';
 
 // Create widget container

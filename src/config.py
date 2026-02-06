@@ -53,6 +53,16 @@ class Settings(BaseSettings):
     escalation_confidence_threshold: float = 0.6
     max_tokens_per_response: int = 500
 
+    # Knowledge Base / RAG
+    kb_embedding_model: str = "text-embedding-3-small"
+    kb_embedding_dimensions: int = 1536
+    kb_chunk_size: int = 500
+    kb_chunk_overlap: int = 50
+    kb_retrieval_top_k: int = 5
+    kb_similarity_threshold: float = 0.3
+    kb_scrape_max_pages: int = 200
+    kb_scrape_timeout: float = 10.0
+
     @property
     def is_development(self) -> bool:
         return self.app_env == "development"

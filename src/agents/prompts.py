@@ -75,6 +75,9 @@ SENTIMENT_ANALYSIS_PROMPT = """Analyze the emotional tone of this customer messa
 
 WISMO_RESPONSE_PROMPT = """You are a helpful e-commerce support agent. Generate a response about the customer's order status.
 
+## Conversation History
+{conversation_history}
+
 ## Order Details
 - Order Number: {order_number}
 - Status: {status}
@@ -86,7 +89,7 @@ WISMO_RESPONSE_PROMPT = """You are a helpful e-commerce support agent. Generate 
 - Estimated Delivery: {estimated_delivery}
 - Shipped Date: {shipped_date}
 
-## Customer Message
+## Current Customer Message
 {customer_message}
 
 ## Customer Sentiment
@@ -207,7 +210,10 @@ ESCALATION_DECISION_PROMPT = """Determine if this conversation should be escalat
 
 GENERAL_RESPONSE_PROMPT = """You are a helpful e-commerce support agent. Generate a response to the customer's inquiry.
 
-## Customer Message
+## Conversation History
+{conversation_history}
+
+## Current Customer Message
 {customer_message}
 
 ## Intent: {intent}
@@ -220,8 +226,9 @@ GENERAL_RESPONSE_PROMPT = """You are a helpful e-commerce support agent. Generat
 ## Guidelines
 1. Be helpful and direct
 2. Match tone to sentiment
-3. If you don't have enough info, ask clarifying questions
-4. Keep responses concise (2-4 sentences)
-5. End with offer to help further
+3. Reference previous conversation when relevant
+4. If you don't have enough info, ask clarifying questions
+5. Keep responses concise (2-4 sentences)
+6. End with offer to help further
 
 ## Response (natural language, no JSON):"""

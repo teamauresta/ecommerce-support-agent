@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from src.config import settings
-from src.models.base import Base
+from src.models import Base  # noqa: F401 — imports also register Store, Conversation, etc.
 
 # Alembic Config object
 config = context.config
@@ -62,7 +62,7 @@ def do_run_migrations(connection: Connection) -> None:
 async def run_async_migrations() -> None:
     """Run migrations in async mode."""
     configuration = config.get_section(config.config_ini_section) or {}
-    configuration["sqlalchemy.url"] = get_url()
+    configuration["sqlalchemy.url"] = settings.database_url
     
     connectable = async_engine_from_config(
         configuration,

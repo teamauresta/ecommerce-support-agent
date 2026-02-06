@@ -30,7 +30,16 @@ async def handle_general(state: ConversationState) -> dict[str, Any]:
     
     intent = state.get("intent", "general_inquiry")
     message = state["current_message"]
-    
+
+    # Build conversation history
+    conversation_history = ""
+    if state.get("messages"):
+        history_messages = state["messages"][-6:]  # Last 3 exchanges
+        conversation_history = "\n".join([
+            f"{m['role'].upper()}: {m['content']}"
+            for m in history_messages
+        ])
+
     # Build context from available data
     context_parts = []
     
@@ -49,7 +58,11 @@ async def handle_general(state: ConversationState) -> dict[str, Any]:
             f"Orders: {customer.get('total_orders')}, "
             f"VIP: {'Yes' if customer.get('is_vip') else 'No'}"
         )
-    
+
+    if state.get("policy_context"):
+        context_parts.append("--- Knowledge Base ---")
+        context_parts.extend(state["policy_context"])
+
     context = "\n".join(context_parts) if context_parts else "No additional context available"
     
     # Generate response with LLM
@@ -60,6 +73,7 @@ async def handle_general(state: ConversationState) -> dict[str, Any]:
     )
     
     prompt = GENERAL_RESPONSE_PROMPT.format(
+        conversation_history=conversation_history or "No previous messages in this conversation",
         customer_message=message,
         intent=intent,
         sentiment=state.get("sentiment", "neutral"),
