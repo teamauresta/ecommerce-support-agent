@@ -2,8 +2,8 @@
 
 from typing import Any, Optional
 
-from sqlalchemy import String, Boolean
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import String, Boolean, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base, UUIDMixin, TimestampMixin
@@ -13,6 +13,14 @@ class Store(Base, UUIDMixin, TimestampMixin):
     """E-commerce store configuration."""
 
     __tablename__ = "stores"
+
+    # Organization link
+    organization_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False),
+        ForeignKey("organizations.id"),
+        nullable=False,
+        index=True,
+    )
 
     # Basic info
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -42,7 +50,13 @@ class Store(Base, UUIDMixin, TimestampMixin):
     )
 
     # Relationships
+    organization = relationship("Organization", back_populates="stores")
     conversations = relationship("Conversation", back_populates="store")
+    agent_instances = relationship(
+        "AgentInstance",
+        back_populates="store",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<Store {self.name} ({self.platform})>"

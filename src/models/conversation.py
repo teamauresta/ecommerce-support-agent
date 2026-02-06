@@ -69,6 +69,15 @@ class Conversation(Base, UUIDMixin, TimestampMixin):
     )
     store = relationship("Store", back_populates="conversations")
 
+    # Agent instance relationship
+    agent_instance_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False),
+        ForeignKey("agent_instances.id"),
+        nullable=False,
+        index=True,
+    )
+    agent_instance = relationship("AgentInstance", back_populates="conversations")
+
     # Customer info
     customer_email: Mapped[Optional[str]] = mapped_column(String(255))
     customer_name: Mapped[Optional[str]] = mapped_column(String(255))
