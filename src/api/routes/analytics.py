@@ -112,7 +112,7 @@ async def get_analytics(
         .group_by(Action.action_type)
     )
     action_rows = action_result.all()
-    actions_taken = dict(action_rows)
+    actions_taken: dict[str, int] = dict(action_rows)  # type: ignore[arg-type]
 
     # Build response
     return AnalyticsResponse(

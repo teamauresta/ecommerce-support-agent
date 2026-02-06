@@ -92,7 +92,7 @@ class WebScraper:
                 logger.debug("page_scraped", url=url, content_length=len(text_content))
 
             for link in soup.find_all("a", href=True):
-                href = link["href"]
+                href = str(link["href"])
                 absolute_url = urljoin(url, href)
                 if (
                     self._is_internal(absolute_url)
@@ -182,8 +182,7 @@ class KnowledgeBaseClient:
         if self._embeddings is None:
             self._embeddings = OpenAIEmbeddings(
                 model=settings.kb_embedding_model,
-                openai_api_key=settings.openai_api_key,
-            )
+            )  # Uses OPENAI_API_KEY env var
         return self._embeddings
 
     async def generate_embeddings(self, texts: list[str]) -> list[list[float]]:

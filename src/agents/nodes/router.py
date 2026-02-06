@@ -67,4 +67,4 @@ def route_to_agent(
         agent=agent,
     )
 
-    return agent
+    return agent  # type: ignore[return-value]

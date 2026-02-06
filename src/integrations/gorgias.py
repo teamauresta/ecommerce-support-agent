@@ -180,7 +180,7 @@ class GorgiasClient:
             assignee_user_id: User ID to assign to
             priority: Priority level
         """
-        update = {}
+        update: dict[str, Any] = {}
 
         if status:
             update["status"] = status

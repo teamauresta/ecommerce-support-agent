@@ -77,17 +77,17 @@ class UsageTracker:
             month: Month date
         """
         # Get organization
-        stmt = select(Organization).where(Organization.id == organization_id)
-        result = await session.execute(stmt)
-        org = result.scalar_one()
+        org_stmt = select(Organization).where(Organization.id == organization_id)
+        org_result = await session.execute(org_stmt)
+        org = org_result.scalar_one()
 
         # Get usage
-        stmt = select(ConversationUsage).where(
+        usage_stmt = select(ConversationUsage).where(
             ConversationUsage.organization_id == organization_id,
             ConversationUsage.month == month,
         )
-        result = await session.execute(stmt)
-        usage = result.scalar_one()
+        usage_result = await session.execute(usage_stmt)
+        usage = usage_result.scalar_one()
 
         limit = org.monthly_conversation_limit
         current = usage.conversation_count
@@ -121,17 +121,17 @@ class UsageTracker:
         current_month = date.today().replace(day=1)
 
         # Get organization
-        stmt = select(Organization).where(Organization.id == organization_id)
-        result = await session.execute(stmt)
-        org = result.scalar_one()
+        org_stmt = select(Organization).where(Organization.id == organization_id)
+        org_result = await session.execute(org_stmt)
+        org = org_result.scalar_one()
 
         # Get usage
-        stmt = select(ConversationUsage).where(
+        usage_stmt = select(ConversationUsage).where(
             ConversationUsage.organization_id == organization_id,
             ConversationUsage.month == current_month,
         )
-        result = await session.execute(stmt)
-        usage = result.scalar_one_or_none()
+        usage_result = await session.execute(usage_stmt)
+        usage = usage_result.scalar_one_or_none()
 
         conversations_used = usage.conversation_count if usage else 0
         limit = org.monthly_conversation_limit
@@ -189,17 +189,17 @@ class BillingEngine:
             Billing details dictionary
         """
         # Get organization
-        stmt = select(Organization).where(Organization.id == organization_id)
-        result = await session.execute(stmt)
-        org = result.scalar_one()
+        org_stmt = select(Organization).where(Organization.id == organization_id)
+        org_result = await session.execute(org_stmt)
+        org = org_result.scalar_one()
 
         # Get usage
-        stmt = select(ConversationUsage).where(
+        usage_stmt = select(ConversationUsage).where(
             ConversationUsage.organization_id == organization_id,
             ConversationUsage.month == month,
         )
-        result = await session.execute(stmt)
-        usage = result.scalar_one_or_none()
+        usage_result = await session.execute(usage_stmt)
+        usage = usage_result.scalar_one_or_none()
 
         conversations = usage.conversation_count if usage else 0
         tier = org.tier
