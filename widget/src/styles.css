@@ -1,0 +1,347 @@
+/* Support Widget Styles */
+
+#support-widget-container {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Chat Button */
+.support-widget-button {
+  position: fixed;
+  bottom: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+  z-index: 9999;
+}
+
+.support-widget-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+}
+
+.support-widget-button:active {
+  transform: scale(0.95);
+}
+
+/* Chat Window */
+.support-widget-window {
+  position: fixed;
+  bottom: 100px;
+  width: 380px;
+  height: 520px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 9998;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 420px) {
+  .support-widget-window {
+    width: calc(100vw - 20px);
+    height: calc(100vh - 120px);
+    bottom: 90px;
+    left: 10px !important;
+    right: 10px !important;
+  }
+}
+
+/* Header */
+.support-widget-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.support-widget-header-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.support-widget-avatar {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.support-widget-title {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.support-widget-subtitle {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.support-widget-close {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 4px;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.support-widget-close:hover {
+  opacity: 1;
+}
+
+/* Messages */
+.support-widget-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #f8f9fa;
+}
+
+.support-widget-welcome {
+  text-align: center;
+  padding: 20px;
+}
+
+.support-widget-welcome p {
+  font-size: 16px;
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.support-widget-quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.support-widget-quick-actions button {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 20px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.support-widget-quick-actions button:hover {
+  background: #f0f0f0;
+  border-color: #667eea;
+}
+
+/* Message Bubbles */
+.support-widget-message {
+  display: flex;
+  gap: 8px;
+  max-width: 85%;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.support-widget-message-user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.support-widget-message-assistant {
+  align-self: flex-start;
+}
+
+.support-widget-message-avatar {
+  width: 32px;
+  height: 32px;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.support-widget-message-content {
+  padding: 10px 14px;
+  border-radius: 16px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.support-widget-message-user .support-widget-message-content {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.support-widget-message-assistant .support-widget-message-content {
+  background: white;
+  color: #333;
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Typing Indicator */
+.support-widget-typing {
+  display: flex;
+  gap: 4px;
+  padding: 12px 16px;
+  background: white;
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.support-widget-typing span {
+  width: 8px;
+  height: 8px;
+  background: #667eea;
+  border-radius: 50%;
+  animation: typing 1.4s infinite ease-in-out;
+}
+
+.support-widget-typing span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.support-widget-typing span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.support-widget-typing span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+/* Error */
+.support-widget-error {
+  background: #fee2e2;
+  color: #dc2626;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Input Form */
+.support-widget-input-form {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  background: white;
+  border-top: 1px solid #e0e0e0;
+}
+
+.support-widget-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 24px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.support-widget-input:focus {
+  border-color: #667eea;
+}
+
+.support-widget-input:disabled {
+  background: #f5f5f5;
+}
+
+.support-widget-send {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.support-widget-send:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.support-widget-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Scrollbar */
+.support-widget-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.support-widget-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.support-widget-messages::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.support-widget-messages::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
+}

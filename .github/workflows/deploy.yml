@@ -1,0 +1,129 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy to"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-staging:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event.inputs.environment != 'production'
+    environment: staging
+    
+    steps:
+      - name: Deploy to Railway (Staging)
+        run: |
+          curl -X POST "${{ secrets.RAILWAY_DEPLOY_WEBHOOK_STAGING }}" \
+            -H "Content-Type: application/json" \
+            -d '{"ref": "${{ github.sha }}"}'
+      
+      - name: Wait for deployment
+        run: sleep 90
+      
+      - name: Health check
+        run: |
+          for i in {1..10}; do
+            if curl -sf https://staging-api.example.com/health; then
+              echo "Deployment healthy"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 10
+          done
+          echo "Health check failed"
+          exit 1
+      
+      - name: Run smoke tests
+        run: |
+          curl -sf https://staging-api.example.com/api/v1/health/ready
+
+  deploy-production:
+    needs: [build-and-push, deploy-staging]
+    runs-on: ubuntu-latest
+    if: github.event.inputs.environment == 'production' || github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+      - name: Deploy to Railway (Production)
+        run: |
+          curl -X POST "${{ secrets.RAILWAY_DEPLOY_WEBHOOK_PRODUCTION }}" \
+            -H "Content-Type: application/json" \
+            -d '{"ref": "${{ github.sha }}"}'
+      
+      - name: Wait for deployment
+        run: sleep 90
+      
+      - name: Health check
+        run: |
+          for i in {1..10}; do
+            if curl -sf https://api.example.com/health; then
+              echo "Deployment healthy"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 10
+          done
+          echo "Health check failed"
+          exit 1
+      
+      - name: Notify Slack
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+          text: "Production deployment: ${{ job.status }}"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

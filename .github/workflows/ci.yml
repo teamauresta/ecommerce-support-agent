@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      
+      - name: Install dependencies
+        run: |
+          pip install ruff black mypy
+          pip install -r requirements.txt
+      
+      - name: Lint with ruff
+        run: ruff check src/ tests/
+      
+      - name: Format check with black
+        run: black --check src/ tests/
+      
+      - name: Type check with mypy
+        run: mypy src/ --ignore-missing-imports
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_DB: test_support_agent
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+      
+      - name: Run unit tests
+        run: pytest tests/unit -v --cov=src --cov-report=xml
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_support_agent
+          REDIS_URL: redis://localhost:6379/0
+      
+      - name: Run component tests
+        if: ${{ env.OPENAI_API_KEY != '' }}
+        run: pytest tests/component -v
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_support_agent
+          REDIS_URL: redis://localhost:6379/0
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ecommerce-support-agent:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
