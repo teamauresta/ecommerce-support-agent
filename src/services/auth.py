@@ -1,14 +1,16 @@
 """Authentication service for API keys and widget keys."""
 
 import secrets
-import bcrypt
 from datetime import datetime
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from src.models.billing import OrganizationAPIKey
-from src.models.agent import AgentInstance
-from src.models.store import Store
+
+import bcrypt
 import structlog
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.models.agent import AgentInstance
+from src.models.billing import OrganizationAPIKey
+from src.models.store import Store
 
 logger = structlog.get_logger()
 
@@ -69,7 +71,7 @@ class AuthService:
             # Find all active keys with this prefix
             stmt = select(OrganizationAPIKey).where(
                 OrganizationAPIKey.key_prefix == prefix,
-                OrganizationAPIKey.is_active == True,
+                OrganizationAPIKey.is_active,
             )
             result = await session.execute(stmt)
             keys = result.scalars().all()

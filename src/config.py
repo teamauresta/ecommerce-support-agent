@@ -1,7 +1,6 @@
 """Application configuration."""
 
 from functools import lru_cache
-from typing import Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -35,17 +34,17 @@ class Settings(BaseSettings):
 
     # LangSmith
     langchain_tracing_v2: bool = True
-    langchain_api_key: Optional[str] = None
+    langchain_api_key: str | None = None
     langchain_project: str = "ecommerce-support"
 
     # Shopify
-    shopify_api_key: Optional[str] = None
-    shopify_api_secret: Optional[str] = None
+    shopify_api_key: str | None = None
+    shopify_api_secret: str | None = None
 
     # Gorgias
-    gorgias_domain: Optional[str] = None
-    gorgias_email: Optional[str] = None
-    gorgias_api_key: Optional[str] = None
+    gorgias_domain: str | None = None
+    gorgias_email: str | None = None
+    gorgias_api_key: str | None = None
 
     # Agent Settings
     auto_refund_limit: float = 50.0

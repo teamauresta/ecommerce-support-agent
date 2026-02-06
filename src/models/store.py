@@ -1,12 +1,12 @@
 """Store model."""
 
-from typing import Any, Optional
+from typing import Any
 
-from sqlalchemy import String, Boolean, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import Boolean, ForeignKey, String
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.base import Base, UUIDMixin, TimestampMixin
+from src.models.base import Base, TimestampMixin, UUIDMixin
 
 
 class Store(Base, UUIDMixin, TimestampMixin):

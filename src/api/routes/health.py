@@ -1,7 +1,8 @@
 """Health check endpoints."""
 
-from fastapi import APIRouter, Response
 import json
+
+from fastapi import APIRouter, Response
 
 from src.database import check_db_connection
 
@@ -20,14 +21,16 @@ async def readiness():
     checks = {
         "database": await check_db_connection(),
     }
-    
+
     all_healthy = all(checks.values())
-    
+
     return Response(
-        content=json.dumps({
-            "status": "ready" if all_healthy else "not_ready",
-            "checks": checks,
-        }),
+        content=json.dumps(
+            {
+                "status": "ready" if all_healthy else "not_ready",
+                "checks": checks,
+            }
+        ),
         status_code=200 if all_healthy else 503,
         media_type="application/json",
     )

@@ -1,33 +1,36 @@
 """Conversation, Message, and Action models."""
 
 from datetime import datetime
-from enum import Enum
-from typing import Any, Optional, List
+from enum import StrEnum
+from typing import Any
 
-from sqlalchemy import String, Text, Float, Boolean, ForeignKey, Integer
+from sqlalchemy import Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.base import Base, UUIDMixin, TimestampMixin
+from src.models.base import Base, TimestampMixin, UUIDMixin
 
 
-class ConversationStatus(str, Enum):
+class ConversationStatus(StrEnum):
     """Conversation status values."""
+
     ACTIVE = "active"
     RESOLVED = "resolved"
     ESCALATED = "escalated"
     ABANDONED = "abandoned"
 
 
-class MessageRole(str, Enum):
+class MessageRole(StrEnum):
     """Message sender role."""
+
     USER = "user"
     ASSISTANT = "assistant"
     SYSTEM = "system"
 
 
-class Intent(str, Enum):
+class Intent(StrEnum):
     """Customer intent categories."""
+
     ORDER_STATUS = "order_status"
     RETURN_REQUEST = "return_request"
     REFUND_REQUEST = "refund_request"
@@ -40,16 +43,18 @@ class Intent(str, Enum):
     OTHER = "other"
 
 
-class Sentiment(str, Enum):
+class Sentiment(StrEnum):
     """Customer sentiment."""
+
     POSITIVE = "positive"
     NEUTRAL = "neutral"
     NEGATIVE = "negative"
     FRUSTRATED = "frustrated"
 
 
-class Priority(str, Enum):
+class Priority(StrEnum):
     """Ticket priority."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -79,9 +84,9 @@ class Conversation(Base, UUIDMixin, TimestampMixin):
     agent_instance = relationship("AgentInstance", back_populates="conversations")
 
     # Customer info
-    customer_email: Mapped[Optional[str]] = mapped_column(String(255))
-    customer_name: Mapped[Optional[str]] = mapped_column(String(255))
-    customer_id: Mapped[Optional[str]] = mapped_column(String(255))
+    customer_email: Mapped[str | None] = mapped_column(String(255))
+    customer_name: Mapped[str | None] = mapped_column(String(255))
+    customer_id: Mapped[str | None] = mapped_column(String(255))
 
     # Channel
     channel: Mapped[str] = mapped_column(String(50), default="widget")
@@ -91,29 +96,29 @@ class Conversation(Base, UUIDMixin, TimestampMixin):
         String(20),
         default=ConversationStatus.ACTIVE.value,
     )
-    primary_intent: Mapped[Optional[str]] = mapped_column(String(50))
-    sentiment: Mapped[Optional[str]] = mapped_column(String(20))
+    primary_intent: Mapped[str | None] = mapped_column(String(50))
+    sentiment: Mapped[str | None] = mapped_column(String(20))
     priority: Mapped[str] = mapped_column(String(20), default=Priority.MEDIUM.value)
 
     # Context
-    order_id: Mapped[Optional[str]] = mapped_column(String(100))
-    external_ticket_id: Mapped[Optional[str]] = mapped_column(String(100))
+    order_id: Mapped[str | None] = mapped_column(String(100))
+    external_ticket_id: Mapped[str | None] = mapped_column(String(100))
 
     # Resolution
-    resolution_summary: Mapped[Optional[str]] = mapped_column(Text)
-    resolved_at: Mapped[Optional[datetime]]
-    csat_score: Mapped[Optional[int]] = mapped_column(Integer)
+    resolution_summary: Mapped[str | None] = mapped_column(Text)
+    resolved_at: Mapped[datetime | None]
+    csat_score: Mapped[int | None] = mapped_column(Integer)
 
     # Extra data
     extra_data: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
     # Relationships
-    messages: Mapped[List["Message"]] = relationship(
+    messages: Mapped[list["Message"]] = relationship(
         "Message",
         back_populates="conversation",
         order_by="Message.created_at",
     )
-    actions: Mapped[List["Action"]] = relationship(
+    actions: Mapped[list["Action"]] = relationship(
         "Action",
         back_populates="conversation",
     )
@@ -140,8 +145,8 @@ class Message(Base, UUIDMixin, TimestampMixin):
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Analysis
-    intent: Mapped[Optional[str]] = mapped_column(String(50))
-    confidence: Mapped[Optional[float]] = mapped_column(Float)
+    intent: Mapped[str | None] = mapped_column(String(50))
+    confidence: Mapped[float | None] = mapped_column(Float)
 
     # Metrics
     tokens_used: Mapped[int] = mapped_column(Integer, default=0)
@@ -167,7 +172,7 @@ class Action(Base, UUIDMixin, TimestampMixin):
     )
     conversation = relationship("Conversation", back_populates="actions")
 
-    message_id: Mapped[Optional[str]] = mapped_column(
+    message_id: Mapped[str | None] = mapped_column(
         UUID(as_uuid=False),
         ForeignKey("messages.id"),
     )
@@ -178,8 +183,8 @@ class Action(Base, UUIDMixin, TimestampMixin):
 
     # Status
     status: Mapped[str] = mapped_column(String(20), default="pending")
-    error_message: Mapped[Optional[str]] = mapped_column(Text)
-    completed_at: Mapped[Optional[datetime]]
+    error_message: Mapped[str | None] = mapped_column(Text)
+    completed_at: Mapped[datetime | None]
 
     def __repr__(self) -> str:
         return f"<Action {self.action_type} ({self.status})>"

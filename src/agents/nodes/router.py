@@ -2,8 +2,9 @@
 
 from typing import Literal
 
-from src.agents.state import ConversationState
 import structlog
+
+from src.agents.state import ConversationState
 
 logger = structlog.get_logger()
 
@@ -28,22 +29,24 @@ def route_to_agent(
 ) -> Literal["wismo", "returns", "refunds", "general", "escalation"]:
     """
     Route to the appropriate specialist agent based on intent.
-    
+
     This is a conditional edge function that returns the next node name.
     """
     intent = state.get("intent", "general_inquiry")
     sentiment = state.get("sentiment", "neutral")
     confidence = state.get("confidence", 0.5)
-    
+
     # Force escalation for frustrated customers with complaints
-    if intent == "complaint" or (sentiment == "frustrated" and state.get("sentiment_intensity", 0) >= 4):
+    if intent == "complaint" or (
+        sentiment == "frustrated" and state.get("sentiment_intensity", 0) >= 4
+    ):
         logger.info(
             "routing_to_escalation",
             conversation_id=state["conversation_id"],
             reason="frustrated_customer_or_complaint",
         )
         return "escalation"
-    
+
     # Low confidence → general agent will handle with fallback
     if confidence < 0.5:
         logger.info(
@@ -53,15 +56,15 @@ def route_to_agent(
             confidence=confidence,
         )
         return "general"
-    
+
     # Route based on intent
     agent = INTENT_TO_AGENT.get(intent, "general")
-    
+
     logger.info(
         "routed_to_agent",
         conversation_id=state["conversation_id"],
         intent=intent,
         agent=agent,
     )
-    
+
     return agent

@@ -1,24 +1,23 @@
 """Billing and usage tracking models."""
 
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (
+    Boolean,
     Date,
-    Integer,
-    Numeric,
+    DateTime,
     ForeignKey,
     Index,
+    Integer,
+    Numeric,
     String,
-    Boolean,
-    DateTime,
-    func,
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.base import Base, UUIDMixin, TimestampMixin
+from src.models.base import Base, TimestampMixin, UUIDMixin
 
 
 class ConversationUsage(Base, UUIDMixin, TimestampMixin):
@@ -62,9 +61,7 @@ class ConversationUsage(Base, UUIDMixin, TimestampMixin):
     # Relationships
     organization = relationship("Organization", back_populates="usage_records")
 
-    __table_args__ = (
-        Index("idx_usage_org_month", "organization_id", "month", unique=True),
-    )
+    __table_args__ = (Index("idx_usage_org_month", "organization_id", "month", unique=True),)
 
     def __repr__(self) -> str:
         return (

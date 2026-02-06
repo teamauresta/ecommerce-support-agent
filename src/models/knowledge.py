@@ -1,13 +1,13 @@
 """Knowledge base models for RAG."""
 
-from typing import Any, Optional
+from typing import Any
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import String, Text, Integer, ForeignKey, Index
+from sqlalchemy import ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.models.base import Base, UUIDMixin, TimestampMixin
+from src.models.base import Base, TimestampMixin, UUIDMixin
 
 
 class KnowledgeChunk(Base, UUIDMixin, TimestampMixin):
@@ -22,7 +22,7 @@ class KnowledgeChunk(Base, UUIDMixin, TimestampMixin):
     )
 
     source_url: Mapped[str] = mapped_column(String(2048), nullable=False)
-    page_title: Mapped[Optional[str]] = mapped_column(String(512))
+    page_title: Mapped[str | None] = mapped_column(String(512))
     content: Mapped[str] = mapped_column(Text, nullable=False)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 

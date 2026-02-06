@@ -2,13 +2,13 @@
 
 from typing import Any
 
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage
-
-from src.config import settings
-from src.agents.state import ConversationState
-from src.agents.prompts import GENERAL_RESPONSE_PROMPT
 import structlog
+from langchain_core.messages import HumanMessage
+from langchain_openai import ChatOpenAI
+
+from src.agents.prompts import GENERAL_RESPONSE_PROMPT
+from src.agents.state import ConversationState
+from src.config import settings
 
 logger = structlog.get_logger()
 
@@ -16,7 +16,7 @@ logger = structlog.get_logger()
 async def handle_general(state: ConversationState) -> dict[str, Any]:
     """
     Handle general inquiries that don't fit specialized agents.
-    
+
     This is the fallback agent for:
     - Product questions
     - Shipping questions
@@ -27,7 +27,7 @@ async def handle_general(state: ConversationState) -> dict[str, Any]:
     updates: dict[str, Any] = {
         "current_agent": "general",
     }
-    
+
     intent = state.get("intent", "general_inquiry")
     message = state["current_message"]
 
@@ -35,14 +35,13 @@ async def handle_general(state: ConversationState) -> dict[str, Any]:
     conversation_history = ""
     if state.get("messages"):
         history_messages = state["messages"][-6:]  # Last 3 exchanges
-        conversation_history = "\n".join([
-            f"{m['role'].upper()}: {m['content']}"
-            for m in history_messages
-        ])
+        conversation_history = "\n".join(
+            [f"{m['role'].upper()}: {m['content']}" for m in history_messages]
+        )
 
     # Build context from available data
     context_parts = []
-    
+
     if state.get("order_data"):
         order = state["order_data"]
         context_parts.append(
@@ -50,7 +49,7 @@ async def handle_general(state: ConversationState) -> dict[str, Any]:
             f"Status: {order.get('status')}, "
             f"Total: ${order.get('total_price')}"
         )
-    
+
     if state.get("customer_data"):
         customer = state["customer_data"]
         context_parts.append(
@@ -64,14 +63,14 @@ async def handle_general(state: ConversationState) -> dict[str, Any]:
         context_parts.extend(state["policy_context"])
 
     context = "\n".join(context_parts) if context_parts else "No additional context available"
-    
+
     # Generate response with LLM
     llm = ChatOpenAI(
         model=settings.default_model,
         temperature=0.7,
         api_key=settings.openai_api_key,
     )
-    
+
     prompt = GENERAL_RESPONSE_PROMPT.format(
         conversation_history=conversation_history or "No previous messages in this conversation",
         customer_message=message,
@@ -80,12 +79,12 @@ async def handle_general(state: ConversationState) -> dict[str, Any]:
         recommended_tone=state.get("recommended_tone", "professional"),
         context=context,
     )
-    
+
     try:
         response = await llm.ainvoke([HumanMessage(content=prompt)])
         updates["response_draft"] = response.content.strip()
         updates["agent_reasoning"] = f"General handler for intent: {intent}"
-        
+
     except Exception as e:
         logger.error("general_response_error", error=str(e))
         # Fallback response
@@ -94,5 +93,5 @@ async def handle_general(state: ConversationState) -> dict[str, Any]:
             "Could you provide a bit more detail so I can assist you better?"
         )
         updates["agent_reasoning"] = f"LLM error, used fallback: {e}"
-    
+
     return updates

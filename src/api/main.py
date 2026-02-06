@@ -2,12 +2,12 @@
 
 from contextlib import asynccontextmanager
 
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.api.routes import analytics, conversations, health, knowledge_base, webhooks
 from src.config import settings
-from src.api.routes import conversations, health, webhooks, analytics, knowledge_base
-import structlog
 
 logger = structlog.get_logger()
 
@@ -73,7 +73,7 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "src.api.main:app",
         host="0.0.0.0",

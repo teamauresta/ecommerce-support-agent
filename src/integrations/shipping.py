@@ -1,7 +1,7 @@
 """Shipping integration for return labels."""
 
-from typing import Any, Optional
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 import structlog
@@ -14,6 +14,7 @@ logger = structlog.get_logger()
 @dataclass
 class Address:
     """Shipping address."""
+
     name: str
     street1: str
     city: str
@@ -28,6 +29,7 @@ class Address:
 @dataclass
 class ReturnLabel:
     """Return shipping label."""
+
     tracking_number: str
     label_url: str
     carrier: str
@@ -38,12 +40,12 @@ class ReturnLabel:
 
 class ShippingClient:
     """Client for shipping operations (EasyPost or similar)."""
-    
+
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.base_url = "https://api.easypost.com/v2"
-        self._client: Optional[httpx.AsyncClient] = None
-    
+        self._client: httpx.AsyncClient | None = None
+
     @property
     def client(self) -> httpx.AsyncClient:
         if self._client is None:
@@ -52,7 +54,7 @@ class ShippingClient:
                 auth=(self.api_key, ""),
             )
         return self._client
-    
+
     async def create_return_label(
         self,
         customer_address: Address,
@@ -62,13 +64,13 @@ class ShippingClient:
     ) -> ReturnLabel:
         """
         Create a prepaid return shipping label.
-        
+
         Args:
             customer_address: Ship from (customer)
             store_address: Ship to (store warehouse)
             weight_oz: Package weight in ounces
             carrier: Preferred carrier
-            
+
         Returns:
             ReturnLabel with tracking and label URL
         """
@@ -76,10 +78,10 @@ class ShippingClient:
             # Create addresses
             from_address = await self._create_address(customer_address)
             to_address = await self._create_address(store_address)
-            
+
             # Create parcel
             parcel = await self._create_parcel(weight_oz)
-            
+
             # Create shipment
             shipment = await self._create_shipment(
                 from_address["id"],
@@ -87,16 +89,16 @@ class ShippingClient:
                 parcel["id"],
                 is_return=True,
             )
-            
+
             # Buy cheapest rate for carrier
             rate = self._select_rate(shipment["rates"], carrier)
-            
+
             if not rate:
                 raise ValueError(f"No rates available for {carrier}")
-            
+
             # Buy the label
             purchased = await self._buy_label(shipment["id"], rate["id"])
-            
+
             return ReturnLabel(
                 tracking_number=purchased["tracking_code"],
                 label_url=purchased["postage_label"]["label_url"],
@@ -105,11 +107,11 @@ class ShippingClient:
                 cost=float(rate["rate"]),
                 estimated_days=rate.get("delivery_days", 5),
             )
-            
+
         except Exception as e:
             logger.error("shipping_label_error", error=str(e))
             raise
-    
+
     async def _create_address(self, address: Address) -> dict[str, Any]:
         """Create an address in EasyPost."""
         response = await self.client.post(
@@ -126,11 +128,11 @@ class ShippingClient:
                     "phone": address.phone,
                     "email": address.email,
                 }
-            }
+            },
         )
         response.raise_for_status()
         return response.json()
-    
+
     async def _create_parcel(self, weight_oz: float) -> dict[str, Any]:
         """Create a parcel."""
         response = await self.client.post(
@@ -140,11 +142,11 @@ class ShippingClient:
                     "weight": weight_oz,
                     "predefined_package": "Parcel",
                 }
-            }
+            },
         )
         response.raise_for_status()
         return response.json()
-    
+
     async def _create_shipment(
         self,
         from_address_id: str,
@@ -162,39 +164,38 @@ class ShippingClient:
                     "parcel": {"id": parcel_id},
                     "is_return": is_return,
                 }
-            }
+            },
         )
         response.raise_for_status()
         return response.json()
-    
+
     def _select_rate(
         self,
         rates: list[dict],
         preferred_carrier: str,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """Select the best rate."""
         # Filter by carrier
         carrier_rates = [r for r in rates if r["carrier"] == preferred_carrier]
-        
+
         if not carrier_rates:
             # Fall back to any carrier
             carrier_rates = rates
-        
+
         if not carrier_rates:
             return None
-        
+
         # Select cheapest
         return min(carrier_rates, key=lambda r: float(r["rate"]))
-    
+
     async def _buy_label(self, shipment_id: str, rate_id: str) -> dict[str, Any]:
         """Buy a shipping label."""
         response = await self.client.post(
-            f"{self.base_url}/shipments/{shipment_id}/buy",
-            json={"rate": {"id": rate_id}}
+            f"{self.base_url}/shipments/{shipment_id}/buy", json={"rate": {"id": rate_id}}
         )
         response.raise_for_status()
         return response.json()
-    
+
     async def get_tracking(self, tracking_number: str, carrier: str) -> dict[str, Any]:
         """Get tracking information."""
         response = await self.client.post(
@@ -204,11 +205,11 @@ class ShippingClient:
                     "tracking_code": tracking_number,
                     "carrier": carrier,
                 }
-            }
+            },
         )
         response.raise_for_status()
         data = response.json()
-        
+
         return {
             "status": data.get("status"),
             "status_detail": data.get("status_detail"),
@@ -227,10 +228,10 @@ class ShippingClient:
 
 class MockShippingClient(ShippingClient):
     """Mock shipping client for development."""
-    
+
     def __init__(self):
         self.api_key = "mock"
-    
+
     async def create_return_label(
         self,
         customer_address: Address,
@@ -241,9 +242,9 @@ class MockShippingClient(ShippingClient):
         """Return mock label data."""
         import random
         import string
-        
+
         tracking = "1Z" + "".join(random.choices(string.ascii_uppercase + string.digits, k=16))
-        
+
         return ReturnLabel(
             tracking_number=tracking,
             label_url=f"https://example.com/labels/{tracking}.pdf",
@@ -252,7 +253,7 @@ class MockShippingClient(ShippingClient):
             cost=0.0,  # Prepaid by store
             estimated_days=3,
         )
-    
+
     async def get_tracking(self, tracking_number: str, carrier: str) -> dict[str, Any]:
         """Return mock tracking data."""
         return {
@@ -275,10 +276,10 @@ def get_shipping_client() -> ShippingClient:
     """Get shipping client."""
     if settings.is_development:
         return MockShippingClient()
-    
+
     # In production, would get API key from settings
     api_key = getattr(settings, "easypost_api_key", None)
     if not api_key:
         return MockShippingClient()
-    
+
     return ShippingClient(api_key)

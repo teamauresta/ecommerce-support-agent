@@ -1,11 +1,13 @@
 """Usage tracking service for billing."""
 
 from datetime import date
-from sqlalchemy.ext.asyncio import AsyncSession
+
+import structlog
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.models.billing import ConversationUsage
 from src.models.organization import Organization
-import structlog
 
 logger = structlog.get_logger()
 

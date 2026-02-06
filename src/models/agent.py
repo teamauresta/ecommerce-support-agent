@@ -3,11 +3,11 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import String, Text, Boolean, DateTime, ForeignKey, Index, func
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.base import Base, UUIDMixin, TimestampMixin
+from src.models.base import Base, TimestampMixin, UUIDMixin
 
 
 class AgentDefinition(Base, UUIDMixin, TimestampMixin):

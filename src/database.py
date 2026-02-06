@@ -1,32 +1,31 @@
 """Database connection and session management."""
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
-    AsyncEngine,
 )
-from sqlalchemy.pool import NullPool, AsyncAdaptedQueuePool
-
+from sqlalchemy.pool import AsyncAdaptedQueuePool, NullPool
 
 # Lazy engine initialization
-_engine: Optional[AsyncEngine] = None
-_session_factory: Optional[async_sessionmaker[AsyncSession]] = None
+_engine: AsyncEngine | None = None
+_session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
 def _create_engine() -> AsyncEngine:
     """Create the async engine with appropriate pool settings."""
     from src.config import settings
-    
+
     # Base options
     options: dict = {
         "echo": settings.app_debug,
     }
-    
+
     # In development/testing, use NullPool (no connection pooling)
     # In production, use connection pooling
     if settings.is_testing or settings.is_development:
@@ -37,7 +36,7 @@ def _create_engine() -> AsyncEngine:
         options["max_overflow"] = settings.database_max_overflow
         options["pool_pre_ping"] = True
         options["pool_recycle"] = 3600  # Recycle connections after 1 hour
-    
+
     return create_async_engine(settings.database_url, **options)
 
 

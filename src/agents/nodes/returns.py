@@ -1,16 +1,16 @@
 """Returns agent node - handles return requests."""
 
 import json
+from datetime import UTC, datetime
 from typing import Any
-from datetime import datetime, timedelta, timezone
 
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage
-
-from src.config import settings
-from src.agents.state import ConversationState
-from src.agents.prompts import RETURN_ELIGIBILITY_PROMPT
 import structlog
+from langchain_core.messages import HumanMessage
+from langchain_openai import ChatOpenAI
+
+from src.agents.prompts import RETURN_ELIGIBILITY_PROMPT
+from src.agents.state import ConversationState
+from src.config import settings
 
 logger = structlog.get_logger()
 
@@ -18,7 +18,7 @@ logger = structlog.get_logger()
 async def handle_returns(state: ConversationState) -> dict[str, Any]:
     """
     Handle return requests.
-    
+
     This agent:
     1. Checks return eligibility based on policy
     2. Generates return label if eligible
@@ -27,10 +27,10 @@ async def handle_returns(state: ConversationState) -> dict[str, Any]:
     updates: dict[str, Any] = {
         "current_agent": "returns",
     }
-    
+
     order_data = state.get("order_data")
     message = state["current_message"]
-    
+
     # Need order info to process return
     if not order_data:
         order_id = state.get("order_id")
@@ -48,28 +48,30 @@ async def handle_returns(state: ConversationState) -> dict[str, Any]:
             )
         updates["agent_reasoning"] = "No order data, requesting order number"
         return updates
-    
+
     # Check eligibility
     eligibility = await _check_return_eligibility(order_data, message, state)
-    
+
     if eligibility["eligible"]:
         # Generate return label
         label_result = await _generate_return_label(order_data, eligibility)
-        
+
         if label_result["success"]:
             updates["response_draft"] = _generate_return_response(
                 order_data, eligibility, label_result, state
             )
-            updates["actions_taken"] = [{
-                "type": "return_label_generated",
-                "data": {
-                    "order_id": order_data.get("order_number"),
-                    "tracking_number": label_result.get("tracking_number"),
-                    "items": eligibility.get("items_eligible", []),
-                },
-                "status": "completed",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }]
+            updates["actions_taken"] = [
+                {
+                    "type": "return_label_generated",
+                    "data": {
+                        "order_id": order_data.get("order_number"),
+                        "tracking_number": label_result.get("tracking_number"),
+                        "items": eligibility.get("items_eligible", []),
+                    },
+                    "status": "completed",
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+            ]
             updates["agent_reasoning"] = "Return approved, label generated"
         else:
             updates["response_draft"] = (
@@ -78,19 +80,19 @@ async def handle_returns(state: ConversationState) -> dict[str, Any]:
                 "and we'll email you the return label within the next hour. "
                 "Is there anything else I can help you with?"
             )
-            updates["agent_reasoning"] = f"Return approved but label failed: {label_result.get('error')}"
+            updates["agent_reasoning"] = (
+                f"Return approved but label failed: {label_result.get('error')}"
+            )
     else:
         # Not eligible - explain why and offer alternatives
-        updates["response_draft"] = _generate_ineligible_response(
-            order_data, eligibility, state
-        )
+        updates["response_draft"] = _generate_ineligible_response(order_data, eligibility, state)
         updates["agent_reasoning"] = f"Return not eligible: {eligibility.get('reason')}"
-        
+
         # May need escalation for edge cases
         if eligibility.get("recommend_escalation"):
             updates["requires_escalation"] = True
             updates["escalation_reason"] = eligibility.get("reason")
-    
+
     return updates
 
 
@@ -100,10 +102,10 @@ async def _check_return_eligibility(
     state: ConversationState,
 ) -> dict[str, Any]:
     """Check if the return request is eligible per store policy."""
-    
+
     # Get policy settings (would come from store settings in production)
     return_window_days = 30
-    
+
     # Calculate days since delivery
     # In production, would use actual delivery date from tracking
     created_at = order_data.get("created_at", "")
@@ -111,26 +113,28 @@ async def _check_return_eligibility(
         try:
             order_date = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
             days_since = (datetime.now(order_date.tzinfo) - order_date).days
-        except:
+        except (ValueError, AttributeError):
             days_since = 0
     else:
         days_since = 0
-    
+
     # Estimated delivery is typically order date + 5 days
     days_since_delivery = max(0, days_since - 5)
-    
+
     # Use LLM to analyze the specific return request
     llm = ChatOpenAI(
         model=settings.default_model,
         temperature=0.1,
         api_key=settings.openai_api_key,
     )
-    
-    items_str = ", ".join([
-        f"{item.get('title', 'Item')} (${item.get('price', '0')})"
-        for item in order_data.get("line_items", [])
-    ])
-    
+
+    items_str = ", ".join(
+        [
+            f"{item.get('title', 'Item')} (${item.get('price', '0')})"
+            for item in order_data.get("line_items", [])
+        ]
+    )
+
     prompt = RETURN_ELIGIBILITY_PROMPT.format(
         return_window_days=return_window_days,
         order_number=order_data.get("order_number"),
@@ -140,30 +144,30 @@ async def _check_return_eligibility(
         items=items_str,
         customer_message=message,
     )
-    
+
     try:
         response = await llm.ainvoke([HumanMessage(content=prompt)])
-        
+
         content = response.content.strip()
         if content.startswith("```"):
             content = content.split("```")[1]
             if content.startswith("json"):
                 content = content[4:]
-        
+
         result = json.loads(content)
-        
+
         logger.info(
             "return_eligibility_checked",
             conversation_id=state["conversation_id"],
             eligible=result.get("eligible"),
             reason=result.get("reason"),
         )
-        
+
         return result
-        
+
     except Exception as e:
         logger.error("return_eligibility_error", error=str(e))
-        
+
         # Default to eligible if within window (conservative approach)
         if days_since_delivery <= return_window_days:
             return {
@@ -186,7 +190,7 @@ async def _generate_return_label(
     eligibility: dict,
 ) -> dict[str, Any]:
     """Generate a return shipping label."""
-    
+
     # In production, this would call EasyPost or similar
     # For now, return mock data
     return {
@@ -205,19 +209,19 @@ def _generate_return_response(
     state: ConversationState,
 ) -> str:
     """Generate response for approved return."""
-    
+
     order_number = order_data.get("order_number", "your order")
     items = eligibility.get("items_eligible", ["your items"])
-    
+
     # Empathetic opener for frustrated customers
     opener = ""
     if state.get("sentiment") == "frustrated":
         opener = "I completely understand, and I'm sorry for any inconvenience. "
-    
+
     items_str = ", ".join(items[:3])
     if len(items) > 3:
         items_str += f", and {len(items) - 3} more item(s)"
-    
+
     return (
         f"{opener}Great news! Your return for order #{order_number} has been approved.\n\n"
         f"Here's what to do next:\n"
@@ -236,23 +240,25 @@ def _generate_ineligible_response(
     state: ConversationState,
 ) -> str:
     """Generate response for ineligible return."""
-    
+
     reason = eligibility.get("reason", "policy restrictions")
     order_number = order_data.get("order_number", "your order")
-    
+
     # Empathetic opener
     opener = "I understand you'd like to return your order, and I wish I could help more. "
     if state.get("sentiment") == "frustrated":
         opener = "I'm really sorry about this situation. "
-    
-    response = f"{opener}Unfortunately, I'm not able to process a return for order #{order_number}. "
+
+    response = (
+        f"{opener}Unfortunately, I'm not able to process a return for order #{order_number}. "
+    )
     response += f"The reason is: {reason}\n\n"
-    
+
     # Offer alternatives
     response += "However, I have a few options that might help:\n"
     response += "• If the item is defective, we can arrange an exchange\n"
     response += "• Store credit is available as an alternative\n"
     response += "• I can connect you with our support team to discuss exceptions\n\n"
     response += "Would any of these options work for you?"
-    
+
     return response

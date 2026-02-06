@@ -1,19 +1,19 @@
 """Conversation API endpoints."""
 
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Depends
+import structlog
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.agents import run_agent
 from src.database import get_session
 from src.models import Conversation, Message, Store
 from src.models.conversation import ConversationStatus, MessageRole
-from src.agents import run_agent
-import structlog
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -21,22 +21,26 @@ router = APIRouter()
 
 # === Request/Response Schemas ===
 
+
 class CreateConversationRequest(BaseModel):
     """Request to start a new conversation."""
+
     channel: str = "widget"
-    customer_email: Optional[str] = None
-    customer_name: Optional[str] = None
+    customer_email: str | None = None
+    customer_name: str | None = None
     initial_message: str = Field(..., min_length=1, max_length=2000)
-    context: Optional[dict[str, Any]] = None
+    context: dict[str, Any] | None = None
 
 
 class SendMessageRequest(BaseModel):
     """Request to send a message."""
+
     content: str = Field(..., min_length=1, max_length=2000)
 
 
 class ConversationResponse(BaseModel):
     """Conversation response."""
+
     conversation_id: str
     message_id: str
     response: dict[str, Any]
@@ -47,6 +51,7 @@ class ConversationResponse(BaseModel):
 
 class MessageResponse(BaseModel):
     """Message response."""
+
     message_id: str
     response: dict[str, Any]
     analysis: dict[str, Any]
@@ -57,6 +62,7 @@ class MessageResponse(BaseModel):
 
 # === Endpoints ===
 
+
 @router.post("/conversations", response_model=ConversationResponse)
 async def create_conversation(
     request: CreateConversationRequest,
@@ -64,14 +70,14 @@ async def create_conversation(
 ):
     """
     Start a new support conversation.
-    
+
     Creates a conversation record and processes the initial message
     through the AI agent.
     """
     # For now, use a default store for development
     # In production, this would come from API key authentication
     store_id = await _get_or_create_dev_store(session)
-    
+
     # Create conversation record
     conversation = Conversation(
         id=str(uuid4()),
@@ -83,24 +89,24 @@ async def create_conversation(
         metadata=request.context or {},
     )
     session.add(conversation)
-    
+
     # Run the agent
     result = await run_agent(
         conversation_id=conversation.id,
         store_id=store_id,
         message=request.initial_message,
     )
-    
+
     # Update conversation with analysis
     conversation.primary_intent = result.get("intent")
     conversation.sentiment = result.get("sentiment")
     if result.get("order_data"):
         conversation.order_id = result["order_data"].get("order_number")
-    
+
     # Check for escalation
     if result.get("requires_escalation"):
         conversation.status = ConversationStatus.ESCALATED.value
-    
+
     # Create message records
     user_message = Message(
         id=str(uuid4()),
@@ -111,7 +117,7 @@ async def create_conversation(
         confidence=result.get("confidence"),
     )
     session.add(user_message)
-    
+
     assistant_message = Message(
         id=str(uuid4()),
         conversation_id=conversation.id,
@@ -120,15 +126,15 @@ async def create_conversation(
         tokens_used=result.get("tokens_used", 0),
     )
     session.add(assistant_message)
-    
+
     await session.commit()
-    
+
     logger.info(
         "conversation_created",
         conversation_id=conversation.id,
         intent=result.get("intent"),
     )
-    
+
     return ConversationResponse(
         conversation_id=conversation.id,
         message_id=assistant_message.id,
@@ -142,7 +148,7 @@ async def create_conversation(
             "confidence": result.get("confidence"),
         },
         actions_taken=result.get("actions_taken", []),
-        created_at=datetime.now(timezone.utc).isoformat(),
+        created_at=datetime.now(UTC).isoformat(),
     )
 
 
@@ -154,22 +160,20 @@ async def send_message(
 ):
     """
     Send a message in an existing conversation.
-    
+
     Adds the message to the conversation history and processes it
     through the AI agent.
     """
     # Fetch conversation
-    result = await session.execute(
-        select(Conversation).where(Conversation.id == conversation_id)
-    )
+    result = await session.execute(select(Conversation).where(Conversation.id == conversation_id))
     conversation = result.scalar_one_or_none()
-    
+
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    
+
     if conversation.status == ConversationStatus.RESOLVED.value:
         raise HTTPException(status_code=409, detail="Conversation is closed")
-    
+
     # Fetch message history
     messages_result = await session.execute(
         select(Message)
@@ -178,12 +182,9 @@ async def send_message(
         .limit(10)
     )
     history_records = messages_result.scalars().all()
-    
-    history = [
-        {"role": m.role, "content": m.content}
-        for m in history_records
-    ]
-    
+
+    history = [{"role": m.role, "content": m.content} for m in history_records]
+
     # Run the agent
     agent_result = await run_agent(
         conversation_id=conversation.id,
@@ -191,17 +192,17 @@ async def send_message(
         message=request.content,
         history=history,
     )
-    
+
     # Update conversation
     if agent_result.get("intent"):
         conversation.primary_intent = agent_result["intent"]
     if agent_result.get("sentiment"):
         conversation.sentiment = agent_result["sentiment"]
-    
+
     # Check for escalation
     if agent_result.get("requires_escalation"):
         conversation.status = ConversationStatus.ESCALATED.value
-    
+
     # Create message records
     user_message = Message(
         id=str(uuid4()),
@@ -212,7 +213,7 @@ async def send_message(
         confidence=agent_result.get("confidence"),
     )
     session.add(user_message)
-    
+
     assistant_message = Message(
         id=str(uuid4()),
         conversation_id=conversation.id,
@@ -221,9 +222,9 @@ async def send_message(
         tokens_used=agent_result.get("tokens_used", 0),
     )
     session.add(assistant_message)
-    
+
     await session.commit()
-    
+
     return MessageResponse(
         message_id=assistant_message.id,
         response={
@@ -237,7 +238,7 @@ async def send_message(
         },
         actions_taken=agent_result.get("actions_taken", []),
         requires_escalation=agent_result.get("requires_escalation", False),
-        created_at=datetime.now(timezone.utc).isoformat(),
+        created_at=datetime.now(UTC).isoformat(),
     )
 
 
@@ -247,14 +248,12 @@ async def get_conversation(
     session: AsyncSession = Depends(get_session),
 ):
     """Get conversation details and history."""
-    result = await session.execute(
-        select(Conversation).where(Conversation.id == conversation_id)
-    )
+    result = await session.execute(select(Conversation).where(Conversation.id == conversation_id))
     conversation = result.scalar_one_or_none()
-    
+
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    
+
     # Fetch messages
     messages_result = await session.execute(
         select(Message)
@@ -262,7 +261,7 @@ async def get_conversation(
         .order_by(Message.created_at)
     )
     messages = messages_result.scalars().all()
-    
+
     return {
         "id": conversation.id,
         "store_id": conversation.store_id,
@@ -293,12 +292,10 @@ async def get_conversation(
 async def _get_or_create_dev_store(session: AsyncSession) -> str:
     """Get or create a development store."""
     DEV_STORE_ID = "00000000-0000-0000-0000-000000000001"
-    
-    result = await session.execute(
-        select(Store).where(Store.id == DEV_STORE_ID)
-    )
+
+    result = await session.execute(select(Store).where(Store.id == DEV_STORE_ID))
     store = result.scalar_one_or_none()
-    
+
     if not store:
         store = Store(
             id=DEV_STORE_ID,
@@ -313,5 +310,5 @@ async def _get_or_create_dev_store(session: AsyncSession) -> str:
         )
         session.add(store)
         await session.flush()
-    
+
     return DEV_STORE_ID

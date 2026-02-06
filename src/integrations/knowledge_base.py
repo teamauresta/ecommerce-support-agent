@@ -1,6 +1,6 @@
 """Knowledge base integration — web scraping, chunking, embedding, and retrieval."""
 
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -29,7 +29,7 @@ class WebScraper:
         self.domain = urlparse(base_url).netloc
         self.max_pages = max_pages
         self.timeout = timeout
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
 
     @property
     def client(self) -> httpx.AsyncClient:
@@ -82,17 +82,22 @@ class WebScraper:
             title = soup.title.string.strip() if soup.title and soup.title.string else ""
 
             if text_content.strip():
-                pages.append({
-                    "url": str(response.url),
-                    "title": title,
-                    "content": text_content,
-                })
+                pages.append(
+                    {
+                        "url": str(response.url),
+                        "title": title,
+                        "content": text_content,
+                    }
+                )
                 logger.debug("page_scraped", url=url, content_length=len(text_content))
 
             for link in soup.find_all("a", href=True):
                 href = link["href"]
                 absolute_url = urljoin(url, href)
-                if self._is_internal(absolute_url) and self._normalize_url(absolute_url) not in visited:
+                if (
+                    self._is_internal(absolute_url)
+                    and self._normalize_url(absolute_url) not in visited
+                ):
                     to_visit.append(absolute_url)
 
         logger.info("scrape_completed", pages_scraped=len(pages), pages_visited=len(visited))
@@ -100,7 +105,9 @@ class WebScraper:
 
     def _extract_text(self, soup: BeautifulSoup) -> str:
         """Extract readable text, removing nav/footer/script elements."""
-        for tag in soup.find_all(["script", "style", "nav", "footer", "header", "aside", "noscript"]):
+        for tag in soup.find_all(
+            ["script", "style", "nav", "footer", "header", "aside", "noscript"]
+        ):
             tag.decompose()
 
         main = soup.find("main") or soup.find("article") or soup.find("body")
@@ -168,7 +175,7 @@ class KnowledgeBaseClient:
     """Manages knowledge base: embedding generation, storage, and retrieval."""
 
     def __init__(self) -> None:
-        self._embeddings: Optional[OpenAIEmbeddings] = None
+        self._embeddings: OpenAIEmbeddings | None = None
 
     @property
     def embeddings(self) -> OpenAIEmbeddings:
@@ -197,9 +204,7 @@ class KnowledgeBaseClient:
         Replaces all existing chunks for this store (full re-index).
         Returns number of chunks created.
         """
-        await session.execute(
-            delete(KnowledgeChunk).where(KnowledgeChunk.store_id == store_id)
-        )
+        await session.execute(delete(KnowledgeChunk).where(KnowledgeChunk.store_id == store_id))
         logger.info("existing_chunks_deleted", store_id=store_id)
 
         all_chunks: list[dict[str, Any]] = []
@@ -210,12 +215,14 @@ class KnowledgeBaseClient:
                 chunk_overlap=settings.kb_chunk_overlap,
             )
             for i, chunk_content in enumerate(text_chunks):
-                all_chunks.append({
-                    "source_url": page["url"],
-                    "page_title": page.get("title", ""),
-                    "content": chunk_content,
-                    "chunk_index": i,
-                })
+                all_chunks.append(
+                    {
+                        "source_url": page["url"],
+                        "page_title": page.get("title", ""),
+                        "content": chunk_content,
+                        "chunk_index": i,
+                    }
+                )
 
         if not all_chunks:
             logger.warning("no_chunks_generated", store_id=store_id)
@@ -230,7 +237,7 @@ class KnowledgeBaseClient:
 
             embeddings = await self.generate_embeddings(texts)
 
-            for chunk_data, embedding in zip(batch, embeddings):
+            for chunk_data, embedding in zip(batch, embeddings, strict=False):
                 chunk = KnowledgeChunk(
                     store_id=store_id,
                     source_url=chunk_data["source_url"],
@@ -306,7 +313,7 @@ class KnowledgeBaseClient:
         ]
 
 
-_kb_client: Optional[KnowledgeBaseClient] = None
+_kb_client: KnowledgeBaseClient | None = None
 
 
 def get_kb_client() -> KnowledgeBaseClient:

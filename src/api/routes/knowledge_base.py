@@ -1,5 +1,6 @@
 """Knowledge base API routes — ingestion and status."""
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy import func, select
@@ -9,7 +10,6 @@ from src.config import settings
 from src.database import get_session
 from src.integrations.knowledge_base import WebScraper, get_kb_client
 from src.models.knowledge import KnowledgeChunk
-import structlog
 
 logger = structlog.get_logger()
 
@@ -47,7 +47,7 @@ async def ingest_website(
         pages = await scraper.scrape()
     except Exception as e:
         logger.error("scrape_failed", url=str(request.url), error=str(e))
-        raise HTTPException(status_code=502, detail=f"Scrape failed: {e}")
+        raise HTTPException(status_code=502, detail=f"Scrape failed: {e}") from e
     finally:
         await scraper.close()
 

@@ -2,12 +2,13 @@
 
 from typing import Any
 
+import structlog
+
 from src.agents.state import ConversationState, OrderData
 from src.config import settings
 from src.database import get_session_context
-from src.integrations.shopify import ShopifyClient, get_shopify_client
 from src.integrations.knowledge_base import get_kb_client
-import structlog
+from src.integrations.shopify import get_shopify_client
 
 logger = structlog.get_logger()
 
@@ -15,30 +16,30 @@ logger = structlog.get_logger()
 async def fetch_context(state: ConversationState) -> dict[str, Any]:
     """
     Fetch relevant context based on extracted entities.
-    
+
     This node retrieves order details, customer history, and any
     other context needed for the specialist agents.
     """
     updates: dict[str, Any] = {
         "current_agent": "context_fetcher",
     }
-    
+
     store_id = state["store_id"]
     order_id = state.get("order_id") or state.get("order_number")
     email = state.get("email")
-    
+
     # Try to get Shopify client
     try:
         shopify = await get_shopify_client(store_id)
     except Exception as e:
         logger.warning("shopify_client_unavailable", store_id=store_id, error=str(e))
         shopify = None
-    
+
     # Fetch order if we have an order ID
     if order_id and shopify:
         try:
             order = await shopify.get_order_by_number(order_id)
-            
+
             if order:
                 # Transform to our OrderData format
                 order_data: OrderData = {
@@ -66,9 +67,9 @@ async def fetch_context(state: ConversationState) -> dict[str, Any]:
                     "created_at": order.get("created_at", ""),
                     "updated_at": order.get("updated_at", ""),
                 }
-                
+
                 updates["order_data"] = order_data
-                
+
                 logger.info(
                     "order_fetched",
                     conversation_id=state["conversation_id"],
@@ -82,7 +83,7 @@ async def fetch_context(state: ConversationState) -> dict[str, Any]:
                     order_number=order_id,
                 )
                 updates["agent_reasoning"] = f"Order #{order_id} not found in system"
-                
+
         except Exception as e:
             logger.error(
                 "order_fetch_error",
@@ -90,7 +91,7 @@ async def fetch_context(state: ConversationState) -> dict[str, Any]:
                 error=str(e),
             )
             updates["error"] = f"Failed to fetch order: {e}"
-    
+
     # Fetch customer data if we have email
     if email and shopify:
         try:
@@ -121,8 +122,7 @@ async def fetch_context(state: ConversationState) -> dict[str, Any]:
             )
             if kb_results:
                 updates["policy_context"] = [
-                    f"[{r['page_title']}]({r['source_url']})\n{r['content']}"
-                    for r in kb_results
+                    f"[{r['page_title']}]({r['source_url']})\n{r['content']}" for r in kb_results
                 ]
                 logger.info(
                     "kb_search_complete",
@@ -139,10 +139,10 @@ def _determine_order_status(order: dict) -> str:
     """Determine human-readable order status."""
     if order.get("cancelled_at"):
         return "cancelled"
-    
+
     fulfillment = order.get("fulfillment_status")
     financial = order.get("financial_status")
-    
+
     if fulfillment == "fulfilled":
         return "delivered" if _is_delivered(order) else "shipped"
     elif fulfillment == "partial":

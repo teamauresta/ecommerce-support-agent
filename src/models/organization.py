@@ -3,11 +3,11 @@
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import String, Integer, Numeric, Boolean
+from sqlalchemy import Boolean, Integer, Numeric, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.models.base import Base, UUIDMixin, TimestampMixin
+from src.models.base import Base, TimestampMixin, UUIDMixin
 
 
 class Organization(Base, UUIDMixin, TimestampMixin):
