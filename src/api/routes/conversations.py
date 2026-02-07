@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents import run_agent
 from src.database import get_session
-from src.models import Conversation, Message, Store
+from src.models import AgentDefinition, AgentInstance, Conversation, Message, Organization, Store
 from src.models.conversation import ConversationStatus, MessageRole
 
 logger = structlog.get_logger()
@@ -76,12 +76,13 @@ async def create_conversation(
     """
     # For now, use a default store for development
     # In production, this would come from API key authentication
-    store_id = await _get_or_create_dev_store(session)
+    store_id, agent_instance_id = await _get_or_create_dev_store(session)
 
     # Create conversation record
     conversation = Conversation(
         id=str(uuid4()),
         store_id=store_id,
+        agent_instance_id=agent_instance_id,
         customer_email=request.customer_email,
         customer_name=request.customer_name,
         channel=request.channel,
@@ -289,16 +290,37 @@ async def get_conversation(
     }
 
 
-async def _get_or_create_dev_store(session: AsyncSession) -> str:
-    """Get or create a development store."""
+async def _get_or_create_dev_store(session: AsyncSession) -> tuple[str, str]:
+    """Get or create a development store with agent instance."""
+    DEV_ORG_ID = "00000000-0000-0000-0000-000000000000"
     DEV_STORE_ID = "00000000-0000-0000-0000-000000000001"
+    DEV_AGENT_DEF_ID = "00000000-0000-0000-0000-000000000002"
+    DEV_AGENT_INST_ID = "00000000-0000-0000-0000-000000000003"
 
-    result = await session.execute(select(Store).where(Store.id == DEV_STORE_ID))
-    store = result.scalar_one_or_none()
+    # Get or create dev organization first
+    org_result = await session.execute(select(Organization).where(Organization.id == DEV_ORG_ID))
+    org = org_result.scalar_one_or_none()
+
+    if not org:
+        org = Organization(
+            id=DEV_ORG_ID,
+            name="Development Organization",
+            slug="dev",
+            billing_email="dev@example.com",
+            tier="enterprise",
+            subscription_status="active",
+        )
+        session.add(org)
+        await session.flush()
+
+    # Get or create dev store
+    store_result = await session.execute(select(Store).where(Store.id == DEV_STORE_ID))
+    store = store_result.scalar_one_or_none()
 
     if not store:
         store = Store(
             id=DEV_STORE_ID,
+            organization_id=DEV_ORG_ID,
             name="Development Store",
             domain="dev.myshopify.com",
             platform="shopify",
@@ -311,4 +333,43 @@ async def _get_or_create_dev_store(session: AsyncSession) -> str:
         session.add(store)
         await session.flush()
 
-    return DEV_STORE_ID
+    # Get or create agent definition
+    agent_def_result = await session.execute(
+        select(AgentDefinition).where(AgentDefinition.id == DEV_AGENT_DEF_ID)
+    )
+    agent_def = agent_def_result.scalar_one_or_none()
+
+    if not agent_def:
+        agent_def = AgentDefinition(
+            id=DEV_AGENT_DEF_ID,
+            type="customer_service",
+            version="1.0.0",
+            name="Customer Service Agent",
+            description="AI-powered customer service agent",
+            graph_module="src.agents.graph",
+            capabilities=["order_status", "returns", "refunds", "general_inquiry"],
+            default_config={},
+        )
+        session.add(agent_def)
+        await session.flush()
+
+    # Get or create agent instance
+    agent_inst_result = await session.execute(
+        select(AgentInstance).where(AgentInstance.id == DEV_AGENT_INST_ID)
+    )
+    agent_inst = agent_inst_result.scalar_one_or_none()
+
+    if not agent_inst:
+        agent_inst = AgentInstance(
+            id=DEV_AGENT_INST_ID,
+            store_id=DEV_STORE_ID,
+            agent_definition_id=DEV_AGENT_DEF_ID,
+            name="Dev Store CS Agent",
+            public_key="pk_widget_dev",
+            status="active",
+            deployed_by="system",
+        )
+        session.add(agent_inst)
+        await session.flush()
+
+    return DEV_STORE_ID, DEV_AGENT_INST_ID

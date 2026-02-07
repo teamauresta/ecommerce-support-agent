@@ -48,6 +48,8 @@ services:
         condition: service_healthy
     volumes:
       - ./src:/app/src  # Hot reload in development
+      - ./alembic:/app/alembic  # Alembic migrations
+      - ./alembic.ini:/app/alembic.ini  # Alembic config
     command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
 
 volumes:

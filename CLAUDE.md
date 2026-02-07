@@ -58,8 +58,32 @@ The graph is compiled once at module load via `get_compiled_graph()` and invoked
 - Python 3.11+, FastAPI, LangGraph/LangChain, OpenAI (gpt-4o-mini default, gpt-4o for reasoning)
 - PostgreSQL 15 with pgvector, Redis, SQLAlchemy 2.0 async, Alembic
 - Testing: pytest with pytest-asyncio (`asyncio_mode = "auto"`), httpx `AsyncClient` for API tests
-- Linting: ruff + black (line-length 100) + mypy (disallow_untyped_defs)
+- Linting: ruff + black (line-length 100) + mypy (mypy configured with `ignore_missing_imports = true`)
 
 ## Testing
 
 Tests use `APP_ENV=testing` set in `conftest.py`. The test database is `test_support_agent` on localhost. Tests mock external services (Shopify, OpenAI) — never call real APIs in tests. The `client` fixture provides an async httpx test client against the FastAPI app.
+
+## Database Sessions
+
+Two session patterns are used consistently:
+- **FastAPI routes:** Use `get_session()` as a dependency (`session: AsyncSession = Depends(get_session)`)
+- **Standalone code:** Use `get_session_context()` as an async context manager:
+  ```python
+  from src.database import get_session_context
+
+  async with get_session_context() as session:
+      # Database operations here
+      pass  # Auto-commits on exit, rolls back on exception
+  ```
+
+## API Structure
+
+All API routes in `src/api/routes/` return FastAPI responses. Main endpoints:
+- `/api/v1/conversations` - Create conversations and send messages
+- `/api/v1/webhooks/shopify/*` - Shopify webhook handlers
+- `/api/v1/analytics/*` - Usage tracking and metrics
+- `/api/v1/knowledge-base/*` - KB management and search
+- `/health` and `/health/ready` - Health checks
+
+Auth is enforced via `AuthMiddleware.verify_api_key` dependency.
