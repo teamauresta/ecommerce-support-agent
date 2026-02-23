@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="https://github.com/teamauresta/ecommerce-support-agent/actions/workflows/ci.yml/badge.svg" alt="CI">
+  <img src="https://github.com/teamauresta/merchant-mind/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT">
   <img src="https://img.shields.io/badge/python-3.12-blue?logo=python" alt="Python">
   <img src="https://img.shields.io/badge/LangGraph-0.2-orange?logo=python" alt="LangGraph">
-  <img src="https://img.shields.io/github/v/tag/teamauresta/ecommerce-support-agent?label=version" alt="Version">
+  <img src="https://img.shields.io/github/v/tag/teamauresta/merchant-mind?label=version" alt="Version">
 </p>
 
 # E-Commerce Support Agent
