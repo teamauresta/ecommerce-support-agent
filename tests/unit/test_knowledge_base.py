@@ -1,10 +1,11 @@
 """Unit tests for knowledge base integration."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from bs4 import BeautifulSoup
 
-from src.integrations.knowledge_base import WebScraper, KnowledgeBaseClient, chunk_text
+from src.integrations.knowledge_base import KnowledgeBaseClient, WebScraper, chunk_text
 
 
 class TestChunkText:
@@ -152,7 +153,9 @@ class TestKnowledgeBaseClient:
         mock_session = AsyncMock()
         mock_session.execute.return_value = mock_result
 
-        with patch.object(kb_client, "generate_query_embedding", new_callable=AsyncMock) as mock_embed:
+        with patch.object(
+            kb_client, "generate_query_embedding", new_callable=AsyncMock
+        ) as mock_embed:
             mock_embed.return_value = [0.1] * 1536
             results = await kb_client.search(mock_session, "store-123", "test query")
 
@@ -170,7 +173,9 @@ class TestKnowledgeBaseClient:
         mock_session = AsyncMock()
         mock_session.execute.return_value = mock_result
 
-        with patch.object(kb_client, "generate_query_embedding", new_callable=AsyncMock) as mock_embed:
+        with patch.object(
+            kb_client, "generate_query_embedding", new_callable=AsyncMock
+        ) as mock_embed:
             mock_embed.return_value = [0.1] * 1536
             results = await kb_client.search(mock_session, "store-123", "query")
 

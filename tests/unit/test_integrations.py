@@ -1,9 +1,9 @@
 """Unit tests for external integrations."""
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import httpx
+import pytest
 
 
 class TestShopifyIntegration:
@@ -13,6 +13,7 @@ class TestShopifyIntegration:
     def shopify_client(self):
         """Create Shopify client for testing."""
         from src.integrations.shopify import ShopifyClient
+
         return ShopifyClient(
             shop="test-store.myshopify.com",
             access_token="shpat_test_token",
@@ -29,9 +30,7 @@ class TestShopifyIntegration:
                 "financial_status": "paid",
                 "fulfillment_status": "fulfilled",
                 "created_at": "2025-01-15T10:00:00Z",
-                "line_items": [
-                    {"title": "Blue Widget", "quantity": 2}
-                ],
+                "line_items": [{"title": "Blue Widget", "quantity": 2}],
                 "fulfillments": [
                     {
                         "tracking_number": "1Z999AA10123456784",
@@ -41,12 +40,12 @@ class TestShopifyIntegration:
                 ],
             }
         }
-        
+
         with patch.object(shopify_client, "_request", new_callable=AsyncMock) as mock_req:
             mock_req.return_value = mock_response
-            
+
             order = await shopify_client.get_order("12345")
-            
+
             assert order["id"] == 12345
             assert order["name"] == "#1001"
             assert order["fulfillment_status"] == "fulfilled"
@@ -61,7 +60,7 @@ class TestShopifyIntegration:
                 request=MagicMock(),
                 response=MagicMock(status_code=404),
             )
-            
+
             with pytest.raises(httpx.HTTPStatusError):
                 await shopify_client.get_order("99999")
 
@@ -74,12 +73,12 @@ class TestShopifyIntegration:
                 {"id": 124, "name": "#1002"},
             ]
         }
-        
+
         with patch.object(shopify_client, "_request", new_callable=AsyncMock) as mock_req:
             mock_req.return_value = mock_response
-            
+
             orders = await shopify_client.search_orders(email="customer@example.com")
-            
+
             assert len(orders) == 2
             assert orders[0]["name"] == "#1001"
 
@@ -91,12 +90,12 @@ class TestShopifyIntegration:
                 {"id": 12345, "order_number": 1234, "name": "#1234"},
             ]
         }
-        
+
         with patch.object(shopify_client, "_request", new_callable=AsyncMock) as mock_req:
             mock_req.return_value = mock_response
-            
+
             order = await shopify_client.get_order_by_number("#1234")
-            
+
             assert order is not None
             assert order["order_number"] == 1234
 
@@ -108,6 +107,7 @@ class TestGorgiasIntegration:
     def gorgias_client(self):
         """Create Gorgias client for testing."""
         from src.integrations.gorgias import GorgiasClient
+
         return GorgiasClient(
             domain="test-store",
             email="admin@test.com",
@@ -124,18 +124,22 @@ class TestGorgiasIntegration:
             "channel": "chat",
             "customer": mock_customer,
         }
-        
-        with patch.object(gorgias_client, "get_or_create_customer", new_callable=AsyncMock) as mock_get_cust, \
-             patch.object(gorgias_client, "_request", new_callable=AsyncMock) as mock_req:
+
+        with (
+            patch.object(
+                gorgias_client, "get_or_create_customer", new_callable=AsyncMock
+            ) as mock_get_cust,
+            patch.object(gorgias_client, "_request", new_callable=AsyncMock) as mock_req,
+        ):
             mock_get_cust.return_value = mock_customer
             mock_req.return_value = mock_ticket
-            
+
             ticket = await gorgias_client.create_ticket(
                 customer_email="customer@example.com",
                 subject="Order inquiry",
                 message="Where is my order?",
             )
-            
+
             assert ticket["id"] == 12345
             assert ticket["status"] == "open"
 
@@ -146,30 +150,30 @@ class TestGorgiasIntegration:
             "id": 67890,
             "body_text": "Your order is on the way!",
         }
-        
+
         with patch.object(gorgias_client, "_request", new_callable=AsyncMock) as mock_req:
             mock_req.return_value = mock_response
-            
+
             message = await gorgias_client.add_message(
                 ticket_id=12345,
                 message="Your order is on the way!",
             )
-            
+
             assert "id" in message
 
     @pytest.mark.asyncio
     async def test_update_ticket_status(self, gorgias_client):
         """Test updating ticket status."""
         mock_response = {"id": 12345, "status": "closed"}
-        
+
         with patch.object(gorgias_client, "_request", new_callable=AsyncMock) as mock_req:
             mock_req.return_value = mock_response
-            
+
             ticket = await gorgias_client.update_ticket(
                 ticket_id=12345,
                 status="closed",
             )
-            
+
             assert ticket["status"] == "closed"
 
 
@@ -179,10 +183,10 @@ class TestShippingIntegration:
     @pytest.mark.asyncio
     async def test_mock_shipping_client_create_label(self):
         """Test mock shipping client returns valid data."""
-        from src.integrations.shipping import MockShippingClient, Address
-        
+        from src.integrations.shipping import Address, MockShippingClient
+
         client = MockShippingClient()
-        
+
         customer_addr = Address(
             name="Customer",
             street1="123 Main St",
@@ -190,7 +194,7 @@ class TestShippingIntegration:
             state="CA",
             zip_code="90001",
         )
-        
+
         store_addr = Address(
             name="Returns Dept",
             street1="456 Warehouse Way",
@@ -198,12 +202,12 @@ class TestShippingIntegration:
             state="AZ",
             zip_code="85001",
         )
-        
+
         label = await client.create_return_label(
             customer_address=customer_addr,
             store_address=store_addr,
         )
-        
+
         assert label.label_url is not None
         assert label.tracking_number is not None
         assert label.carrier is not None
@@ -212,21 +216,21 @@ class TestShippingIntegration:
     async def test_mock_shipping_client_tracking(self):
         """Test mock shipping client tracking."""
         from src.integrations.shipping import MockShippingClient
-        
+
         client = MockShippingClient()
-        
+
         tracking = await client.get_tracking(
             tracking_number="1Z999AA10123456784",
             carrier="UPS",
         )
-        
+
         assert tracking["status"] == "in_transit"
         assert "events" in tracking
 
     def test_address_dataclass(self):
         """Test Address dataclass works correctly."""
         from src.integrations.shipping import Address
-        
+
         addr = Address(
             name="Test User",
             street1="123 Main St",
@@ -234,19 +238,19 @@ class TestShippingIntegration:
             state="NY",
             zip_code="10001",
         )
-        
+
         assert addr.name == "Test User"
         assert addr.country == "US"  # Default value
 
     def test_get_shipping_client_returns_mock_in_dev(self):
         """Test get_shipping_client returns mock in development."""
-        from src.integrations.shipping import get_shipping_client, MockShippingClient
-        
+        from src.integrations.shipping import MockShippingClient, get_shipping_client
+
         with patch("src.integrations.shipping.settings") as mock_settings:
             mock_settings.is_development = True
-            
+
             client = get_shipping_client()
-            
+
             assert isinstance(client, MockShippingClient)
 
 
@@ -257,18 +261,18 @@ class TestPaymentIntegration:
     async def test_process_refund_via_shopify(self):
         """Test processing refund through Shopify."""
         from src.integrations.shopify import ShopifyClient
-        
+
         client = ShopifyClient(
             shop="test.myshopify.com",
             access_token="test_token",
         )
-        
+
         mock_calc_response = {
             "refund": {
                 "transactions": [{"parent_id": 999}],
             }
         }
-        
+
         mock_refund_response = {
             "refund": {
                 "id": 789,
@@ -276,17 +280,17 @@ class TestPaymentIntegration:
                 "transactions": [{"amount": "29.99"}],
             }
         }
-        
+
         with patch.object(client, "_request", new_callable=AsyncMock) as mock_req:
             # First call is calculate, second is create
             mock_req.side_effect = [mock_calc_response, mock_refund_response]
-            
+
             refund = await client.create_refund(
                 order_id="12345",
                 amount=29.99,
                 reason="Customer request",
             )
-            
+
             assert refund["id"] == 789
             assert refund["order_id"] == 12345
 
@@ -294,14 +298,14 @@ class TestPaymentIntegration:
         """Test refund amount validation logic."""
         # Simple policy check - amounts over limit need approval
         auto_refund_limit = 100.0
-        
+
         test_cases = [
-            (50.0, False),   # Under limit, auto-approve
+            (50.0, False),  # Under limit, auto-approve
             (100.0, False),  # At limit, auto-approve
-            (150.0, True),   # Over limit, needs approval
-            (500.0, True),   # Way over limit
+            (150.0, True),  # Over limit, needs approval
+            (500.0, True),  # Way over limit
         ]
-        
+
         for amount, should_need_approval in test_cases:
             needs_approval = amount > auto_refund_limit
             assert needs_approval == should_need_approval, f"Failed for amount {amount}"
@@ -314,10 +318,10 @@ class TestMockShopifyClient:
     async def test_mock_get_order_by_number(self):
         """Test mock client returns valid data."""
         from src.integrations.shopify import MockShopifyClient
-        
+
         client = MockShopifyClient()
         order = await client.get_order_by_number("#1234")
-        
+
         assert order is not None
         assert order["order_number"] == 1234
         assert "line_items" in order
@@ -327,9 +331,9 @@ class TestMockShopifyClient:
     async def test_mock_get_customer_by_email(self):
         """Test mock client returns customer data."""
         from src.integrations.shopify import MockShopifyClient
-        
+
         client = MockShopifyClient()
         customer = await client.get_customer_by_email("test@example.com")
-        
+
         assert customer is not None
         assert customer["email"] == "test@example.com"

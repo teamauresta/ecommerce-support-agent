@@ -1,7 +1,8 @@
 """Tests for Refunds agent."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from src.agents.nodes.refunds import handle_refunds
 from src.agents.state import create_initial_state
@@ -10,7 +11,7 @@ from src.agents.state import create_initial_state
 @pytest.mark.asyncio
 class TestHandleRefunds:
     """Tests for refunds handler."""
-    
+
     async def test_no_order_data_no_order_id(self):
         """When no order info available, ask for it."""
         state = create_initial_state(
@@ -20,12 +21,12 @@ class TestHandleRefunds:
         )
         state["order_data"] = None
         state["order_id"] = None
-        
+
         result = await handle_refunds(state)
-        
+
         assert "order number" in result["response_draft"].lower()
         assert result["current_agent"] == "refunds"
-    
+
     @patch("src.agents.nodes.refunds.ChatOpenAI")
     async def test_auto_approve_under_limit(self, mock_llm_class):
         """Small refund gets auto-approved."""
@@ -34,7 +35,7 @@ class TestHandleRefunds:
             content='{"auto_approve": true, "amount": 25.00, "reason": "Under limit", "requires_return": false, "escalation_needed": false}'
         )
         mock_llm_class.return_value = mock_llm
-        
+
         state = create_initial_state(
             conversation_id="conv_123",
             store_id="store_456",
@@ -47,13 +48,13 @@ class TestHandleRefunds:
         }
         state["refund_amount"] = 25.0
         state["sentiment"] = "neutral"
-        
+
         result = await handle_refunds(state)
-        
+
         assert result["current_agent"] == "refunds"
         assert any(a["type"] == "refund_processed" for a in result.get("actions_taken", []))
         assert "refund" in result["response_draft"].lower()
-    
+
     @patch("src.agents.nodes.refunds.ChatOpenAI")
     async def test_escalate_over_limit(self, mock_llm_class):
         """Large refund needs escalation."""
@@ -62,7 +63,7 @@ class TestHandleRefunds:
             content='{"auto_approve": false, "amount": 150.00, "escalation_needed": true, "escalation_reason": "Amount exceeds auto-approve limit"}'
         )
         mock_llm_class.return_value = mock_llm
-        
+
         state = create_initial_state(
             conversation_id="conv_123",
             store_id="store_456",
@@ -75,12 +76,15 @@ class TestHandleRefunds:
         }
         state["refund_amount"] = 150.0
         state["sentiment"] = "neutral"
-        
+
         result = await handle_refunds(state)
-        
+
         assert result["requires_escalation"] is True
-        assert "team" in result["response_draft"].lower() or "review" in result["response_draft"].lower()
-    
+        assert (
+            "team" in result["response_draft"].lower()
+            or "review" in result["response_draft"].lower()
+        )
+
     @patch("src.agents.nodes.refunds.ChatOpenAI")
     async def test_frustrated_customer_tone(self, mock_llm_class):
         """Response adapts to frustrated customer."""
@@ -89,7 +93,7 @@ class TestHandleRefunds:
             content='{"auto_approve": true, "amount": 25.00, "reason": "Customer complaint", "requires_return": false, "escalation_needed": false}'
         )
         mock_llm_class.return_value = mock_llm
-        
+
         state = create_initial_state(
             conversation_id="conv_123",
             store_id="store_456",
@@ -101,9 +105,9 @@ class TestHandleRefunds:
             "created_at": "2026-02-01T10:00:00Z",
         }
         state["sentiment"] = "frustrated"
-        
+
         result = await handle_refunds(state)
-        
+
         # Should have empathetic language
         response = result["response_draft"].lower()
         assert any(word in response for word in ["understand", "sorry", "frustration", "apologize"])
